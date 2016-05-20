@@ -1,0 +1,70 @@
+.macro DELAY_NS
+.mparam	wait_number
+    MOV r10, ((wait_number/10)-5)
+    DELAY:
+        SUB r10, r10, 1
+        QBNE DELAY, r10, 0
+.endm
+
+.macro SEND_R30_5_PULSE
+.mparam	LOWTIME, HIGHTIME
+	CLR		R30.t5
+	DELAY_NS LOWTIME
+	SET		R30.t5
+	DELAY_NS HIGHTIME
+.endm
+
+.macro SEND_R30_3_PULSE
+.mparam	LOWTIME, HIGHTIME
+	CLR		R30.t5
+	DELAY_NS LOWTIME/2
+	CLR		R30.t3
+	DELAY_NS LOWTIME/2
+	SET		R30.t5
+	DELAY_NS HIGHTIME
+	SEND_R30_5_PULSE 18450, 26540
+	SEND_R30_5_PULSE 18450, 26540
+	SEND_R30_5_PULSE 18450, 26540
+	CLR		R30.t5
+	DELAY_NS LOWTIME/2
+	SET		R30.t3
+	DELAY_NS LOWTIME/2
+	SET		R30.t5
+	DELAY_NS HIGHTIME
+.endm
+
+.macro SET_VIDOUT_HIGH
+	SET		r30.t8
+.endm
+
+.macro SET_VIDOUT_LOW
+	CLR		r30.t8
+.endm
+
+// DEFINE CONSTANTS //
+#define VRAM_BASE_ADDR			0x8001000
+#define SHARED_RAM_ADDRESS		0x10000000
+#define PRU0_R31_VEC_VALID		32    // allows notification of program completion
+#define PRU_EVTOUT_0			3     // the event number that is sent back
+#define PRU_EVTOUT_1			4     // the event number that is sent back
+#define SCREEN_WIDTH			512
+#define SCREEN_HEIGHT			342
+#define CONST_VRAM				0x2202C
+#define TIMER_DELAY				250000
+#define MEM_LENGTH				0x00000008
+#define	REG_CHUNKS				16
+
+// REGISTER MAP //
+// Die vom Host-Programm uebermittelte Position der Videodaten im VRAM
+#define VRAM_ADDRESS			r1
+#define VRAM_OFFSET				r2
+// Das Register, in welches die Pixel-Daten aus dem RAM geladen werden
+#define PIXELDATA				r4
+
+#define CURR_LINE				r20
+#define	CURR_ROW				r21
+#define PIXELS					r22
+#define PIXELDATA_POINTER		r23
+#define	CURR_OFFSET				r24
+#define SHARED_RAM				r27
+#define	CURR_CHUNK				r28
