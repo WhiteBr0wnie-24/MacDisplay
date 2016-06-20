@@ -27,7 +27,7 @@
 #include <pruss_intc_mapping.h>
 #include <signal.h>
 
-#include "steve.xbm"
+#include "images/testimage.xbm"
 
 // #define ADDEND1	 	 		0x98765400u
 #define ADDEND1			 	 	0x10000000u
