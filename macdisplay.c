@@ -25,31 +25,45 @@
 #include <unistd.h>
 #include <prussdrv.h>
 #include <pruss_intc_mapping.h>
+#include <signal.h>
 
-#include "testimage.xbm"
+#include "steve.xbm"
 
+// #define ADDEND1	 	 		0x98765400u
+#define ADDEND1			 	 	0x10000000u
+
+#define PRU_NUM					0
 #define DISP_WIDTH				512
 #define DISP_HEIGHT				342
-#define VRAM_SIZE				(DISP_WIDTH*DISP_HEIGHT/8)
+#define INVERT_COLORS			0
 
 #define DDR_BASE_ADDR			0x80000000
 #define DDR_OFFSET				0x00001000
+#define SRAM_OFFSET				2048
+#define PRUSS0_SHARED_DATARAM	4
+#define VRAM_SIZE				(DISP_WIDTH*DISP_HEIGHT)/8
+
+#define LINE_REGISTERS			16
+#define REGISTER_BYTES			4
+#define	LINEBYTES				LINE_REGISTERS*REGISTER_BYTES
 
 typedef int bool;
 #define true 1
 #define false 0
 
-static int mem_dev;
-static void *vram;
-static bool ended = false;
+int mem_dev;
+float cnt = 0;
+void *vram;
+volatile bool running = true;
 
-static bool initVRAM(void);
-static void writeFrameToVRAM(void);
-static void writeLineToVRAM(int);
-static int cleanUp(void);
-int main(void);
+void writeFrameToVRAM(void);
 
-static bool initVRAM()
+void ctrlCHandler(int dummy)
+{
+    running = false;
+}
+
+static bool initVRAM(void)
 {
 	printf("Opening /dev/mem ... ");
 	
@@ -65,7 +79,8 @@ static bool initVRAM()
 	
 	printf("Attempting to map memory ... ");
 	
-	vram = mmap(0, VRAM_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
+	//vram = mmap(0, 0x0FFFFFFF, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
+	vram = mmap(0, VRAM_SIZE*2, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
 	
 	printf("OK.\n");
 	
@@ -76,13 +91,50 @@ static bool initVRAM()
 		return false;
 	}
 	
-	printf("Testing VRAM-Size: %i kBytes ... ", VRAM_SIZE/1024);
+	printf("Testing VRAM-Size: %i Bytes ... ", VRAM_SIZE);
 	printf("OK.\n");
 	
-	printf("Writing testimage.xbm to vram (%p)... ", vram);
-
-	// writeFrameToVRAM();
-	writeLineToVRAM(0);
+	printf("Writing testimage.xbm to vram (%p)... ", vram+DDR_OFFSET);
+	
+	// memcpy((void *)(vram+DDR_OFFSET), (void *)test_image, VRAM_SIZE);
+	// void *DDR_regaddr1 = vram + DDR_OFFSET;
+	// printf("... (%p)... ", DDR_regaddr1);
+	// *(unsigned long*) DDR_regaddr1 = ADDEND1;
+	
+	/**
+	void *DDR_regaddr2 = vram + DDR_OFFSET + 0x00000004;
+	void *DDR_regaddr3 = vram + DDR_OFFSET + 0x00000008;
+	void *DDR_regaddr4 = vram + DDR_OFFSET + 0x00000010;
+	void *DDR_regaddr5 = vram + DDR_OFFSET + 0x00000014;
+	void *DDR_regaddr6 = vram + DDR_OFFSET + 0x00000018;
+	void *DDR_regaddr7 = vram + DDR_OFFSET + 0x00000020;
+	void *DDR_regaddr8 = vram + DDR_OFFSET + 0x00000024;
+	void *DDR_regaddr9 = vram + DDR_OFFSET + 0x00000028;
+	void *DDR_regaddr10 = vram + DDR_OFFSET + 0x00000030;
+	void *DDR_regaddr11 = vram + DDR_OFFSET + 0x00000034;
+	void *DDR_regaddr12 = vram + DDR_OFFSET + 0x00000038;
+	void *DDR_regaddr13 = vram + DDR_OFFSET + 0x00000040;
+	void *DDR_regaddr14 = vram + DDR_OFFSET + 0x00000044;
+	void *DDR_regaddr15 = vram + DDR_OFFSET + 0x00000048;
+	void *DDR_regaddr16 = vram + DDR_OFFSET + 0x00000050;
+	
+    *(unsigned long*) DDR_regaddr2 = ADDEND1;
+    *(unsigned long*) DDR_regaddr3 = ADDEND1;
+	*(unsigned long*) DDR_regaddr4 = ADDEND1;
+    *(unsigned long*) DDR_regaddr5 = ADDEND1;
+    *(unsigned long*) DDR_regaddr6 = ADDEND1;
+	*(unsigned long*) DDR_regaddr7 = ADDEND1;
+    *(unsigned long*) DDR_regaddr8 = ADDEND1;
+    *(unsigned long*) DDR_regaddr9 = ADDEND1;
+	*(unsigned long*) DDR_regaddr10 = ADDEND1;
+    *(unsigned long*) DDR_regaddr11 = ADDEND1;
+    *(unsigned long*) DDR_regaddr12 = ADDEND1;
+	*(unsigned long*) DDR_regaddr13 = ADDEND1;
+    *(unsigned long*) DDR_regaddr14 = ADDEND1;
+    *(unsigned long*) DDR_regaddr15 = ADDEND1;
+	*(unsigned long*) DDR_regaddr16 = ADDEND1;
+	**/
+	writeFrameToVRAM();
 	
 	printf("OK.\n");
 	
@@ -90,33 +142,114 @@ static bool initVRAM()
 }
 
 /**
-static void writeFrameToVRAM()
+void writeFrameToVRAM(void)
 {
-	int o = 0;
+	int i = 0;
+	volatile unsigned char *data_address = vram + DDR_OFFSET;
 	
-	for(; o < DISP_HEIGHT; o++)
+	for(; i < VRAM_SIZE; i++)
 	{
-		writeLineToVRAM(o);
+		// printf("%p, %i\n", data_address, i);
+		*data_address = test_image[i];
+		
+		/**
+		if(i%2 == 0)
+		{
+			*data_address = (unsigned char)(0xF0);
+			// printf("%p, %i\n", data_address, i);
+		}
+		else
+		{
+			*data_address = (unsigned char)(0x0F);
+		}
+		
+		data_address++;
 	}
-	
-	// TODO: Notify PRU program that a new frame is available
 }
 **/
 
-// 1 Zeile hat 64 Byte
-static void writeLineToVRAM(int line)
+void writeFrameToVRAM(void)
 {
-	// DEBUG
+	int i = 0;
+	
+	for(; i < DISP_HEIGHT; i++)
+	{
+		// LINE_REGISTERS should be 16
+		// 16 mal 4 byte
+		// 16 mal 4*8 bit = 512 -> eine komplette linie
+		int u = 0;
+		volatile unsigned long *data_addr = vram + DDR_OFFSET + LINEBYTES * i;
+		volatile char lineData[64];
+		int byteCounter = 0;
+		
+		int o = 0;
+		for(; o < 64; o++)
+		{
+			lineData[o] = test_image[i*64+o];
+		}
+		
+		// Die einzelnen 16 register einer zeile durchlaufen
+		for(; u < LINE_REGISTERS; u++)
+		{
+			volatile char registerBytes[4];
+			int c = 0;
+			
+			// die einzelnen 4 byte aus den bilddaten zu einem der 16
+			// register zusammenfuegen
+			for(; c < REGISTER_BYTES; c++)
+			{
+				// volatile int lineOffset = LINEBYTES*i;
+				// volatile int regOffset = REGISTER_BYTES * u;
+				volatile char currByte;
+				
+				// volatile char currByte = test_image[lineOffset+regOffset+c];
+				if(INVERT_COLORS == 1)
+					currByte = ~lineData[byteCounter];
+				else
+					currByte = lineData[byteCounter];
+				
+				registerBytes[c] = currByte;
+				byteCounter++;
+			}
+			
+			// Das register zu einem unsigned long casten und
+			// in den speicher schreiben
+			volatile unsigned long regData = 0l;
+			
+			regData += registerBytes[0] << 24;
+			regData += registerBytes[1] << 16;
+			regData += registerBytes[2] << 8;
+			regData += registerBytes[3];
+			
+			// volatile unsigned long *data_addr = vram + DDR_OFFSET + LINEBYTES * i + REGISTER_BYTES * u;
+			
+			// nun das gecastete long in den vram schreiben
+			// printf("Line %i, register %i (%p): 0x%x (Byte #%i)\n", i+1, u+1, data_addr, regData, byteCounter);
+			*data_addr = regData;
+			data_addr++;
+		}
+	}
+	
+	// printf("Read %i Bytes\n", byteCounter);
+}
+
+// 1 Zeile hat 64 Byte
+int writeTestPatternToVRAM()
+{
+	//DEBUG
 	// printf("\n----- Line %i (%i Bits) -----\n", line, DISP_WIDTH);
 	
 	int i = 0;
 	int lineLength = DISP_WIDTH / 8;
+	int colLength = DISP_HEIGHT / 8;
 	int regBytes = 4;
-	int lineOffset = line * lineLength;
-	int regs = lineLength / regBytes;
+	int regs = (lineLength*colLength) / regBytes;
+	
+	// printf("Total register count: %i\n", regs);
 	
 	for(; i < regs; i++)
 	{
+		// hexadezimal 0x00000200 = dezimal 512 = 1 Zeile Bildschirmdaten
 		int regOffset = 0x00000004 * i;
 		void *DDR_regaddr = vram + DDR_OFFSET + regOffset;
 		char registerValue[4];
@@ -124,7 +257,35 @@ static void writeLineToVRAM(int line)
 		int u=0;
 		for(; u < regBytes; u++)
 		{
-			char currByte = test_image[u+i*regBytes+line*lineLength];
+			char currByte;
+			
+			if(i%2==0)
+			{
+				if(i==0)
+					currByte = 0xFF;
+				if(i<=172 && i>0)
+					currByte = 0x00;
+				if(i>172&&i<=344)
+					currByte = 0xFF;
+				if(i>344 && i<=516)
+					currByte = 0x00;
+				if(i>516)
+					currByte = 0xFF;
+			}
+			else
+			{
+				if(i<=172)
+					currByte = 0xFF;
+				if(i>172&&i<=344)
+					currByte = 0x00;
+				if(i>344 && i<=516)
+					currByte = 0xFF;
+				if(i>516 && i!=688)
+					currByte = 0x00;
+				if(i==688)
+					currByte = 0xFF;
+			}
+			
 			registerValue[u]=currByte;
 		}
 		
@@ -134,75 +295,63 @@ static void writeLineToVRAM(int line)
 	}
 	
 	// printf("-----------------------------\n");
-}
-
-static int cleanUp(void)
-{
-	prussdrv_pru_disable(0);
-	prussdrv_pru_disable(1);
-	prussdrv_exit ();
-	
-    munmap(vram, VRAM_SIZE);
-    close(mem_dev);
-	
 	return 0;
 }
 
 int main (void)
 {
+	signal(SIGINT, ctrlCHandler);
+	
 	// Initialize structure used by prussdrv_pruintc_intc
 	// PRUSS_INTC_INITDATA is found in pruss_intc_mapping.h
 	tpruss_intc_initdata pruss_intc_initdata = PRUSS_INTC_INITDATA;
 	
-	printf("Initialize PRU_0_1_MEM and Host-Controller ... ");
+	printf("Initialize PRU MEM ... ");
 	// Allocate and initialize memory
 	prussdrv_init ();
 	prussdrv_open (PRU_EVTOUT_0);
-	// prussdrv_open (PRU_EVTOUT_1);
 
 	// Map PRU's interrupts
 	prussdrv_pruintc_init(&pruss_intc_initdata);
 	printf("OK\n");
 	
 	// VRAM initialisieren
-	if(!initVRAM())
-		return 2;
+	if(!(initVRAM()))
+		return(12132);
 	
-	printf("Flashing PRU_0 Program ... ");
-	
-	// Load and execute the PRU program on the PRU
-	prussdrv_exec_program (0, "./pru_0.bin");
-	
-	printf("OK\n");
-	/**
-	printf("Flashing PRU_1 Program ... ");
+	printf("Flashing PRU Program ... ");
 	
 	// Load and execute the PRU program on the PRU
-	prussdrv_exec_program (1, "./pru_1.bin");
+	prussdrv_exec_program (PRU_NUM, "./pru_0.bin");
 	
 	printf("OK\n");
-	**/
 	
-	prussdrv_pru_wait_event (PRU_EVTOUT_0);
-	// prussdrv_pru_wait_event (PRU_EVTOUT_1);
+	int i = prussdrv_pru_send_wait_clear_event(32, PRU_EVTOUT_0, 32);
 	
-	printf("PRU program halted\n");
-	
-	/**
-	while(!ended)
+	// Wait for event completion from PRU, returns PRU_EVTOUT_0 number
+	while(running)
 	{
-		// PRU_1 sendet ein event, sobald das VSYNC erreicht wurde
-		// in dieser Zeit soll der Host ein neues Frame in den
-		// VRAM schreiben, damit dieses nach dem VSYNC gezeichnet
-		// werden kann.
-		// Wait for event completion from PRU, returns PRU_EVTOUT_0 number
-		// prussdrv_pru_clear_event(PRU_EVTOUT_0, 32);
-		int n = prussdrv_pru_wait_event (PRU_EVTOUT_1);
+		// int n = prussdrv_pru_wait_event (PRU_EVTOUT_0);
+		int c = prussdrv_pru_send_wait_clear_event(32, PRU_EVTOUT_0, 32);
+		// printf("PRU program completed, event number %d.\n", n);
+		// printf("PRU next line cmd received!\n");
+		// writeFrameToVRAM();
+		// writeTestPatternToVRAM();
+		
 		writeFrameToVRAM();
-		printf("Frame %d finished.\n", n);
+		// memset(vram + DDR_OFFSET, 0, VRAM_SIZE);
 	}
-	**/
+	
+	printf("Exiting ... ");
 	
 	// Disable PRU and close memory mappings
-	return cleanUp();
+	prussdrv_pru_disable(PRU_NUM);
+	prussdrv_exit ();
+	
+    munmap(vram, VRAM_SIZE);
+    close(mem_dev);
+	
+	printf("OK\n");
+
+    return(0);
 }
