@@ -96,77 +96,12 @@ static bool initVRAM(void)
 	
 	printf("Writing testimage.xbm to vram (%p)... ", vram+DDR_OFFSET);
 	
-	// memcpy((void *)(vram+DDR_OFFSET), (void *)test_image, VRAM_SIZE);
-	// void *DDR_regaddr1 = vram + DDR_OFFSET;
-	// printf("... (%p)... ", DDR_regaddr1);
-	// *(unsigned long*) DDR_regaddr1 = ADDEND1;
-	
-	/**
-	void *DDR_regaddr2 = vram + DDR_OFFSET + 0x00000004;
-	void *DDR_regaddr3 = vram + DDR_OFFSET + 0x00000008;
-	void *DDR_regaddr4 = vram + DDR_OFFSET + 0x00000010;
-	void *DDR_regaddr5 = vram + DDR_OFFSET + 0x00000014;
-	void *DDR_regaddr6 = vram + DDR_OFFSET + 0x00000018;
-	void *DDR_regaddr7 = vram + DDR_OFFSET + 0x00000020;
-	void *DDR_regaddr8 = vram + DDR_OFFSET + 0x00000024;
-	void *DDR_regaddr9 = vram + DDR_OFFSET + 0x00000028;
-	void *DDR_regaddr10 = vram + DDR_OFFSET + 0x00000030;
-	void *DDR_regaddr11 = vram + DDR_OFFSET + 0x00000034;
-	void *DDR_regaddr12 = vram + DDR_OFFSET + 0x00000038;
-	void *DDR_regaddr13 = vram + DDR_OFFSET + 0x00000040;
-	void *DDR_regaddr14 = vram + DDR_OFFSET + 0x00000044;
-	void *DDR_regaddr15 = vram + DDR_OFFSET + 0x00000048;
-	void *DDR_regaddr16 = vram + DDR_OFFSET + 0x00000050;
-	
-    *(unsigned long*) DDR_regaddr2 = ADDEND1;
-    *(unsigned long*) DDR_regaddr3 = ADDEND1;
-	*(unsigned long*) DDR_regaddr4 = ADDEND1;
-    *(unsigned long*) DDR_regaddr5 = ADDEND1;
-    *(unsigned long*) DDR_regaddr6 = ADDEND1;
-	*(unsigned long*) DDR_regaddr7 = ADDEND1;
-    *(unsigned long*) DDR_regaddr8 = ADDEND1;
-    *(unsigned long*) DDR_regaddr9 = ADDEND1;
-	*(unsigned long*) DDR_regaddr10 = ADDEND1;
-    *(unsigned long*) DDR_regaddr11 = ADDEND1;
-    *(unsigned long*) DDR_regaddr12 = ADDEND1;
-	*(unsigned long*) DDR_regaddr13 = ADDEND1;
-    *(unsigned long*) DDR_regaddr14 = ADDEND1;
-    *(unsigned long*) DDR_regaddr15 = ADDEND1;
-	*(unsigned long*) DDR_regaddr16 = ADDEND1;
-	**/
 	writeFrameToVRAM();
 	
 	printf("OK.\n");
 	
 	return true;
 }
-
-/**
-void writeFrameToVRAM(void)
-{
-	int i = 0;
-	volatile unsigned char *data_address = vram + DDR_OFFSET;
-	
-	for(; i < VRAM_SIZE; i++)
-	{
-		// printf("%p, %i\n", data_address, i);
-		*data_address = test_image[i];
-		
-		/**
-		if(i%2 == 0)
-		{
-			*data_address = (unsigned char)(0xF0);
-			// printf("%p, %i\n", data_address, i);
-		}
-		else
-		{
-			*data_address = (unsigned char)(0x0F);
-		}
-		
-		data_address++;
-	}
-}
-**/
 
 void writeFrameToVRAM(void)
 {
@@ -331,15 +266,9 @@ int main (void)
 	// Wait for event completion from PRU, returns PRU_EVTOUT_0 number
 	while(running)
 	{
-		// int n = prussdrv_pru_wait_event (PRU_EVTOUT_0);
 		int c = prussdrv_pru_send_wait_clear_event(32, PRU_EVTOUT_0, 32);
-		// printf("PRU program completed, event number %d.\n", n);
-		// printf("PRU next line cmd received!\n");
-		// writeFrameToVRAM();
-		// writeTestPatternToVRAM();
 		
 		writeFrameToVRAM();
-		// memset(vram + DDR_OFFSET, 0, VRAM_SIZE);
 	}
 	
 	printf("Exiting ... ");

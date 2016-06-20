@@ -26,9 +26,11 @@
 .endm
 
 .macro READVRAMDATA
+	// Read one line of Data (64*8 byte = 512 bit)
+	// And set the pointer (r27) to the address of the
+	// next line in VRAM.
 	LBBO		r4, r27, 0, 64
 	ADD			r27, r27, 0x00000040
-	// ADD			r27, r27, 0x00000010
 .endm
 
 .macro WRITEREG
@@ -37,7 +39,6 @@
 	QBA			WRITEPIXEL
 	WRITEPIXEL:
 		SUB			r21, r21, 1
-		// DELAY_NS	80;
 		DELAY_NS	85;
 		QBBS		WRITEPIXEL_HIGH, reg.t31
 		QBBC		WRITEPIXEL_LOW, reg.t31
@@ -49,24 +50,12 @@
 		CLR			R30.t0
 		LSL			reg, reg, #1
 		QBNE		WRITEPIXEL, r21, 0
-	// SET			R30.t0
 .endm
 
 .macro SEND_R30_5_PULSE
-// .mparam	LOWTIME, HIGHTIME
-// .mparam	line
 	READVRAMDATA
 	CLR		R30.t5
-	// DELAY_NS LOWTIME
-	// DELAY_NS	 11185				// <--- alter Wert (funktionierte mit weissen linien !!!)
-	
-	// An der stelle dynamisch warten, je nachdem, wie lange das readvram data gedauert hat
-	
-	
 	DELAY_NS	 11150
-	// SET		R30.t0
-	// START VIDEO SIGNAL (ersten 3 regs + 9 bits, dauer: 7245ns)
-	// DELAY_NS	 7245
 	WRITEREG	 r4
 	WRITEREG	 r5
 	WRITEREG	 r6
@@ -84,8 +73,6 @@
 	WRITEREG	 r17
 	WRITEREG	 r18
 	WRITEREG	 r19
-	// DELAY_NS HIGHTIME
-	// DELAY_NS	25445
 	CLR		R30.t0
 	DELAY_NS	995
 .endm
@@ -142,11 +129,6 @@ START:
 	CLR		r0, r0, 4  
 	SBCO	r0, C4, 4, 4
 	
-	// Configure the programmable pointer register for PRU0 by setting c28_pointer[15:0] 
-	// field to 0x0120.  This will make C28 point to 0x00012000 (PRU shared RAM).
-	// MOV		r0, 0x00000120
-	// SBBO	r0, CONST_SHARED, 0, 4
-	
 	// Configure the programmable pointer register for PRU0 by setting c31_pointer[15:0] 
 	// field to 0x0010.  This will make C31 point to 0x80001000 (DDR memory).
 	// Siehe RTM, Seite 27, Sektion 5.2.2.3, Tabelle 13 und Sekt. 5.2.2.3.2
@@ -160,7 +142,6 @@ START:
 	MOV		r26, 342
 	MOV		r25, 1000
 	MOV		CURR_OFFSET, 0
-	// MOV		r22, 0x80001000
 	MOV		r22, 0x00080000
 	MOV		r27, 0x80001000
 	
@@ -169,38 +150,30 @@ START:
 SEND_VSYNC:
 	MOV		r27, 0x80001000
 	SEND_R30_3_PULSE 18450, 26550
-	// MOV		r22, 0x80001000
 	MOV		r22, 0x00080000
 	MOV		r26, 342
-	// SUB		r25, r25, 1
-	// Notify the host, that a new frame can be buffered
-	// Endlosschleife !
-	// QBNE	RUN, r25, 0
-	// QBEQ	END, r25, 0
 	
 	// HSYNC Pulse waehrend 1,25ms weiter laufen lassen nach dem hsync
 	// video daten beginnen nicht sofort nach dem hsync (fuehrt sonst zu
 	// bildfehlern)
 	MOV		r28, 28
 	SEND_HSYNC:
-		CLR		R30.t5
-		DELAY_NS 18440
-		SET		R30.t5
-		DELAY_NS 26520
-		SUB		r28, r28, 1
-		QBNE	SEND_HSYNC, r28, 0
+		CLR			R30.t5
+		DELAY_NS	18440
+		SET			R30.t5
+		DELAY_NS	26520
+		SUB			r28, r28, 1
+		QBNE		SEND_HSYNC, r28, 0
 	
 	QBA RUN
 	
 RUN:
-	// SEND_R30_5_PULSE DATA_ADDRESS
 	SEND_R30_5_PULSE
-	// WRITELINE 0
 	SUB		r26, r26, 1
 	ADD		DATA_ADDRESS, DATA_ADDRESS, MEM_LENGTH*16
 	QBEQ	SEND_VSYNC, r26, 0
 	QBA 	RUN
 
-END:                             // notify the calling app that finished
+END:
 	MOV		R31.b0, PRU0_R31_VEC_VALID | PRU_EVTOUT_0
-	HALT                     // halt the pru program
+	HALT
