@@ -28,7 +28,7 @@
 #include <pruss_intc_mapping.h>
 #include <signal.h>
 
-#include "cat1.xbm"
+#include "images/cat1.xbm"
 
 #define PRU_NUM					0
 #define DISP_WIDTH				512
