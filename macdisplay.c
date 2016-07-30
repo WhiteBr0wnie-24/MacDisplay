@@ -8,6 +8,7 @@
 * welches gezeichnet werden kann.
 *
 * Kompilation mithilfe von: gcc [INPUT_FILE].c -lprussdrv -lpthread -o [OUTPUT_FILE]
+* Compile with: gcc [INPUT_FILE].c -lprussdrv -lpthread -o [OUTPUT_FILE]
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License version 3 as
@@ -27,10 +28,7 @@
 #include <pruss_intc_mapping.h>
 #include <signal.h>
 
-#include "images/testimage.xbm"
-
-// #define ADDEND1	 	 		0x98765400u
-#define ADDEND1			 	 	0x10000000u
+#include "cat1.xbm"
 
 #define PRU_NUM					0
 #define DISP_WIDTH				512
@@ -56,6 +54,7 @@ float cnt = 0;
 void *vram;
 volatile bool running = true;
 
+// prototypes
 void writeFrameToVRAM(void);
 
 void ctrlCHandler(int dummy)
@@ -79,7 +78,6 @@ static bool initVRAM(void)
 	
 	printf("Attempting to map memory ... ");
 	
-	//vram = mmap(0, 0x0FFFFFFF, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
 	vram = mmap(0, VRAM_SIZE*2, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
 	
 	printf("OK.\n");
@@ -96,6 +94,7 @@ static bool initVRAM(void)
 	
 	printf("Writing testimage.xbm to vram (%p)... ", vram+DDR_OFFSET);
 	
+	// Write the initial frame to the vram
 	writeFrameToVRAM();
 	
 	printf("OK.\n");
@@ -109,7 +108,7 @@ void writeFrameToVRAM(void)
 	
 	for(; i < DISP_HEIGHT; i++)
 	{
-		// LINE_REGISTERS should be 16
+		// LINE_REGISTERS should be 16 (for the mac classics display)
 		// 16 mal 4 byte
 		// 16 mal 4*8 bit = 512 -> eine komplette linie
 		int u = 0;
@@ -117,38 +116,36 @@ void writeFrameToVRAM(void)
 		volatile char lineData[64];
 		int byteCounter = 0;
 		
+		// Read one line of pixel data from the cat image
+		// 64 byte * 8 = 512 bit = 512 pixels = x_resolution of the macdisplay
 		int o = 0;
 		for(; o < 64; o++)
 		{
 			lineData[o] = test_image[i*64+o];
 		}
 		
-		// Die einzelnen 16 register einer zeile durchlaufen
+		// Split one line into 16 registers
 		for(; u < LINE_REGISTERS; u++)
 		{
-			volatile char registerBytes[4];
+			volatile char registerBytes[REGISTER_BYTES];
 			int c = 0;
 			
 			// die einzelnen 4 byte aus den bilddaten zu einem der 16
 			// register zusammenfuegen
 			for(; c < REGISTER_BYTES; c++)
 			{
-				// volatile int lineOffset = LINEBYTES*i;
-				// volatile int regOffset = REGISTER_BYTES * u;
 				volatile char currByte;
 				
-				// volatile char currByte = test_image[lineOffset+regOffset+c];
 				if(INVERT_COLORS == 1)
 					currByte = ~lineData[byteCounter];
 				else
 					currByte = lineData[byteCounter];
-				
+
 				registerBytes[c] = currByte;
 				byteCounter++;
 			}
 			
-			// Das register zu einem unsigned long casten und
-			// in den speicher schreiben
+			
 			volatile unsigned long regData = 0l;
 			
 			regData += registerBytes[0] << 24;
@@ -156,81 +153,10 @@ void writeFrameToVRAM(void)
 			regData += registerBytes[2] << 8;
 			regData += registerBytes[3];
 			
-			// volatile unsigned long *data_addr = vram + DDR_OFFSET + LINEBYTES * i + REGISTER_BYTES * u;
-			
-			// nun das gecastete long in den vram schreiben
-			// printf("Line %i, register %i (%p): 0x%x (Byte #%i)\n", i+1, u+1, data_addr, regData, byteCounter);
 			*data_addr = regData;
 			data_addr++;
 		}
 	}
-	
-	// printf("Read %i Bytes\n", byteCounter);
-}
-
-// 1 Zeile hat 64 Byte
-int writeTestPatternToVRAM()
-{
-	//DEBUG
-	// printf("\n----- Line %i (%i Bits) -----\n", line, DISP_WIDTH);
-	
-	int i = 0;
-	int lineLength = DISP_WIDTH / 8;
-	int colLength = DISP_HEIGHT / 8;
-	int regBytes = 4;
-	int regs = (lineLength*colLength) / regBytes;
-	
-	// printf("Total register count: %i\n", regs);
-	
-	for(; i < regs; i++)
-	{
-		// hexadezimal 0x00000200 = dezimal 512 = 1 Zeile Bildschirmdaten
-		int regOffset = 0x00000004 * i;
-		void *DDR_regaddr = vram + DDR_OFFSET + regOffset;
-		char registerValue[4];
-		
-		int u=0;
-		for(; u < regBytes; u++)
-		{
-			char currByte;
-			
-			if(i%2==0)
-			{
-				if(i==0)
-					currByte = 0xFF;
-				if(i<=172 && i>0)
-					currByte = 0x00;
-				if(i>172&&i<=344)
-					currByte = 0xFF;
-				if(i>344 && i<=516)
-					currByte = 0x00;
-				if(i>516)
-					currByte = 0xFF;
-			}
-			else
-			{
-				if(i<=172)
-					currByte = 0xFF;
-				if(i>172&&i<=344)
-					currByte = 0x00;
-				if(i>344 && i<=516)
-					currByte = 0xFF;
-				if(i>516 && i!=688)
-					currByte = 0x00;
-				if(i==688)
-					currByte = 0xFF;
-			}
-			
-			registerValue[u]=currByte;
-		}
-		
-		//printf("%p\n", DDR_regaddr);
-		// printf("%p\n", *(unsigned long*)registerValue);
-		*(unsigned long*) DDR_regaddr = *(unsigned long*)registerValue;
-	}
-	
-	// printf("-----------------------------\n");
-	return 0;
 }
 
 int main (void)
@@ -242,6 +168,7 @@ int main (void)
 	tpruss_intc_initdata pruss_intc_initdata = PRUSS_INTC_INITDATA;
 	
 	printf("Initialize PRU MEM ... ");
+	
 	// Allocate and initialize memory
 	prussdrv_init ();
 	prussdrv_open (PRU_EVTOUT_0);
@@ -268,7 +195,9 @@ int main (void)
 	{
 		int c = prussdrv_pru_send_wait_clear_event(32, PRU_EVTOUT_0, 32);
 		
-		writeFrameToVRAM();
+		// Optional if you want to refresh the frames
+		// Otherwise the same frame is drawn over and over again
+		// writeFrameToVRAM();
 	}
 	
 	printf("Exiting ... ");
