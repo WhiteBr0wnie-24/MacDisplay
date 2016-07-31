@@ -7,4 +7,4 @@ Currently working on displaying the shell and x server output on the screen.
 See http://www.nerdhut.de/ for informations, updates will be released there.
 
 
-![alt text](https://raw.githubusercontent.com/dherczeg-tgm/MacDisplay/master/images/steve_on_macclassic.JPG "Macintosh Classic displays steve jobs in 2016")
+![alt text](https://66.media.tumblr.com/b293d0992fef8fa695c7a0584cfce5bf/tumblr_ob6ixowMJ81vzqzzwo1_1280.jpg "Macintosh Classic displays cat images")
