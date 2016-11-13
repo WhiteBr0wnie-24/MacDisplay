@@ -79,7 +79,6 @@ static bool initVRAM(void)
 	
 	printf("Attempting to map memory ... ");
 	
-	//vram = mmap(0, 0x0FFFFFFF, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
 	vram = mmap(0, VRAM_SIZE*2, PROT_WRITE | PROT_READ, MAP_SHARED, mem_dev, DDR_BASE_ADDR);
 	
 	printf("OK.\n");
@@ -96,7 +95,7 @@ static bool initVRAM(void)
 	
 	printf("Writing testimage.xbm to vram (%p)... ", vram+DDR_OFFSET);
 	
-	writeFrameToVRAM();
+	// writeTestPatternToVRAM();
 	
 	printf("OK.\n");
 	
